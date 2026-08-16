@@ -1,0 +1,19 @@
+# Analyse d'accessibilité aux SONU sous blocage routier, Haïti
+# Testé sous Python 3.14 sur Windows 11.
+#
+#   python -m venv .venv
+#   .venv\Scripts\pip install -r requirements.txt
+
+geopandas>=1.0
+shapely>=2.0        # API vectorisée : get_coordinates, contains_xy
+pyproj>=3.6
+pyogrio>=0.9        # lecture rapide des GeoPackage
+rasterio>=1.3
+numpy>=2.0
+pandas>=2.2
+pyarrow>=16.0       # écriture Parquet des couches intermédiaires
+scipy>=1.11         # sparse.csgraph.dijkstra, spatial.cKDTree
+matplotlib>=3.8
+folium>=0.16
+requests>=2.31
+openpyxl>=3.1       # lecture des classeurs ACLED
