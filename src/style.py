@@ -1,17 +1,14 @@
 """
 Jetons graphiques et réglages matplotlib communs à toutes les sorties.
 
-Les couleurs ne sont pas choisies à l'œil. Chaque couleur fait exactement un
-travail : dire une identité (catégoriel), dire une quantité (séquentiel), dire un
-état (statut). Les valeurs ci-dessous proviennent d'une palette validée : la
-rampe séquentielle bleue est monotone en clarté, et le triplet catégoriel
-bleu / rouge / jaune passe le contrôle de séparation en vision déficiente sur
-toutes les paires (ΔE 15,3 en deutéranopie, plancher exigé 8).
+Chaque couleur fait un seul travail : identité (catégoriel), quantité
+(séquentiel) ou état (statut). La rampe bleue est monotone en clarté et le
+triplet bleu / rouge / jaune passe le contrôle de séparation en vision
+déficiente sur toutes les paires (ΔE 15,3 en deutéranopie, plancher exigé 8).
 
-Le jaune tombe sous le rapport de contraste 3:1 sur fond clair. La compensation
-prévue est appliquée partout où il sert : légende explicitement libellée et
-export du même contenu en tableau CSV, de sorte que l'information ne repose
-jamais sur la seule couleur.
+Le jaune tombe sous le contraste 3:1 sur fond clair. Partout où il sert, la
+légende est explicitement libellée et le même contenu est exporté en CSV :
+l'information ne repose jamais sur la seule couleur.
 """
 
 from __future__ import annotations
@@ -39,18 +36,16 @@ FOND_MER = "#eef2f6"
 # Rampe séquentielle : une seule teinte, du clair au foncé
 # --------------------------------------------------------------------------
 
-# Le temps de trajet est une grandeur, pas une identité ni une polarité : il
-# prend donc une rampe à teinte unique. Un dégradé arc-en-ciel donnerait
-# l'illusion de seuils là où la variation est continue.
+# Le temps de trajet est une grandeur : rampe à teinte unique. Un dégradé
+# arc-en-ciel donnerait l'illusion de seuils là où la variation est continue.
 RAMPE_BLEUE = [
     "#cde2fb", "#b7d3f6", "#9ec5f4", "#86b6ef", "#6da7ec", "#5598e7",
     "#3987e5", "#2a78d6", "#256abf", "#1c5cab", "#184f95", "#104281", "#0d366b",
 ]
 CMAP_TEMPS = LinearSegmentedColormap.from_list("temps_trajet", RAMPE_BLEUE)
 
-# Rampe ordinale à trois crans pour les seuils 30 / 60 / 120 minutes. Le cran le
-# plus clair reste au-dessus de 2:1 sur la surface, condition pour qu'une barre
-# claire ne se confonde pas avec le fond.
+# Rampe ordinale pour les seuils 30 / 60 / 120 minutes. Le cran le plus clair
+# reste au-dessus de 2:1 sur la surface, pour ne pas se confondre avec le fond.
 RAMPE_SEUILS = ["#86b6ef", "#2a78d6", "#104281"]
 
 # --------------------------------------------------------------------------
@@ -103,9 +98,9 @@ def titrer(ax, titre: str, sous_titre: str = "", source: str = "") -> None:
     """
     Pose titre, sous-titre et source au-dessus d'un graphique.
 
-    Le placement se fait en coordonnées d'axes plutôt que par `set_title` et
-    `figure.text` : mélanger les deux systèmes fait se chevaucher les deux
-    textes dès que la figure change de taille.
+    Placement en coordonnées d'axes plutôt que par `set_title` et `figure.text` :
+    mélanger les deux systèmes fait se chevaucher les textes dès que la figure
+    change de taille.
     """
     ax.set_title("")
     haut = 1.13 if sous_titre else 1.04

@@ -1,39 +1,28 @@
 """
 Étape 4 : criticité des tronçons et scénarios de crise.
 
-La criticité d'un tronçon est établie en deux temps.
+La criticité s'établit en deux temps : présélection par la charge, puis mesure
+directe du dommage, l'accessibilité du pays entier étant recalculée sans chaque
+tronçon présélectionné. Les deux classements ne coïncident pas. Une artère
+fréquentée d'un quartier maillé se contourne ; un tronçon modeste qui est le
+seul franchissement d'une ravine coûte des heures.
 
-D'abord une présélection par la charge : la demande obstétricale dont
-l'itinéraire le plus rapide vers un hôpital emprunte le tronçon. Ensuite, et
-c'est le point important, une mesure directe du dommage : pour chacun des
-tronçons présélectionnés, l'accessibilité de tout le pays est recalculée sans
-lui, et l'on retient les minutes effectivement perdues.
+Cinq scénarios, de deux natures différentes :
 
-Les deux classements ne coïncident pas. Une artère très fréquentée d'un
-quartier maillé se contourne, et sa coupure coûte quelques minutes ; un tronçon
-modeste qui constitue le seul franchissement d'une ravine coûte des heures.
-Ne se fier qu'à la charge reviendrait à confondre importance et irremplaçabilité.
+  A  points de contrôle diffus              choc sur le réseau
+  B  encerclement de la ZMPP                choc sur le réseau
+  C  A et B cumulés                         choc sur le réseau
+  D  fermeture des hôpitaux métropolitains  choc sur l'offre
+  E  C et D cumulés                         crise combinée
 
-Cinq scénarios sont ensuite comparés, et ils ne sont pas de même nature :
+Distinguer choc de réseau et choc d'offre est le cœur de l'exercice : savoir
+lequel pèse le plus décide de l'affectation des moyens.
 
-  A  points de contrôle diffus   choc sur le réseau
-  B  encerclement de la ZMPP     choc sur le réseau
-  C  A et B cumulés              choc sur le réseau
-  D  fermeture des hôpitaux
-     de l'aire métropolitaine    choc sur l'offre
-  E  C et D cumulés              crise combinée
-
-Distinguer le choc de réseau du choc d'offre est le cœur de l'exercice. Une
-partie de la réponse humanitaire porte sur les routes, une autre sur le maintien
-en fonctionnement des structures ; savoir laquelle des deux pèse le plus décide
-de l'affectation des moyens.
-
-MISE EN GARDE MÉTHODOLOGIQUE. Ces scénarios ne sont pas des observations. Le jeu
-ACLED diffusé sur HDX est agrégé au mois et à la commune : il ne contient aucune
-coordonnée d'incident et ne permet donc pas de localiser un barrage réel. La
-géographie des coupures est un produit du modèle, calculé par une règle
-explicite et reproductible ; elle n'est pas une carte des barrages existants et
-ne doit jamais être présentée comme telle.
+MISE EN GARDE. Ces scénarios ne sont pas des observations. Le jeu ACLED de HDX
+est agrégé au mois et à la commune, sans coordonnée d'incident : il ne permet
+pas de localiser un barrage réel. La géographie des coupures est un produit du
+modèle, calculé par une règle explicite, et ne doit jamais être présentée comme
+une carte des barrages existants.
 
 Sorties :
   outputs/tables/04_*.csv
@@ -75,13 +64,12 @@ from config import (  # noqa: E402
 )
 from utils import etape, exiger, log  # noqa: E402
 
-# Classes retenues comme axes structurants : un barrage se tient sur un axe qui
-# porte du trafic, pas sur une desserte résidentielle en impasse.
+# Axes structurants : un barrage se tient sur un axe qui porte du trafic, pas
+# sur une desserte résidentielle en impasse.
 CLASSES_AXES = {"motorway", "trunk", "primary", "secondary", "tertiary", "unclassified"}
 
-# Paliers resserrés sur le bas de l'échelle : le dommage se concentre sur les
-# tout premiers tronçons, et une grille à 0, 20, 40 masquerait entièrement la
-# forme de la courbe.
+# Paliers resserrés en bas d'échelle : le dommage se concentre sur les tout
+# premiers tronçons, une grille à 0, 20, 40 masquerait la forme de la courbe.
 PALIERS_CONTROLES = [0, 1, 2, 3, 4, 6, 8, 10, 15]
 
 
@@ -113,12 +101,10 @@ def ecarter_les_voisins(
     """
     Parcourt une liste déjà classée et n'en retient que des tronçons éloignés.
 
-    Cette contrainte est appliquée dès la présélection, et non au moment du
-    choix final. La raison tient à la géométrie du graphe : les arêtes sont les
-    segments entre points de forme d'une polyligne, si bien que les cinquante
-    tronçons les plus chargés du pays décrivent en réalité deux ou trois
-    kilomètres du même axe. Présélectionner sans espacement reviendrait à
-    évaluer cent cinquante fois le même barrage.
+    Contrainte appliquée dès la présélection : les arêtes étant les segments
+    entre points de forme, les cinquante tronçons les plus chargés du pays
+    décrivent deux ou trois kilomètres du même axe. Sans espacement, on
+    évaluerait cent cinquante fois le même barrage.
     """
     retenus: list[int] = []
     for idx in ordonnes:
@@ -139,15 +125,10 @@ def evaluer_candidats(
     """
     Mesure le dommage réel de la coupure de chaque tronçon candidat.
 
-    Deux mesures sont produites. Les minutes perdues, pondérées par la demande,
-    quantifient l'allongement total des trajets. La demande décrochée compte les
-    femmes qui passent au-delà du seuil de référence.
-
-    La seconde est la plus parlante mais elle sature : sur ce réseau, aucune
-    coupure isolée ne fait basculer qui que ce soit au-delà de deux heures, si
-    bien qu'elle vaut zéro partout tant que le seuil est fixé trop haut. C'est
-    l'une des raisons pour lesquelles le seuil de référence a été ramené à
-    soixante minutes.
+    Les minutes perdues pondérées quantifient l'allongement total des trajets ;
+    la demande décrochée compte les femmes passant au-delà du seuil. La seconde
+    est plus parlante mais sature : aucune coupure isolée ne fait basculer qui
+    que ce soit au-delà de deux heures, d'où le seuil ramené à soixante minutes.
     """
     couvert_avant = reference <= SEUIL_REFERENCE
     ref_finie = np.isfinite(reference)
@@ -175,11 +156,9 @@ def selectionner_points_controle(dommages: pd.DataFrame, n: int) -> np.ndarray:
     """
     Retient les n tronçons dont la coupure coûte le plus.
 
-    Le classement se fait sur les minutes perdues pondérées plutôt que sur la
-    demande décrochée : la première discrimine sur tout le champ des candidats,
-    la seconde ne se déclenche qu'au franchissement du seuil et laisse
-    d'innombrables ex aequo. Les candidats étant déjà espacés, aucune contrainte
-    supplémentaire n'est nécessaire ici.
+    Classement sur les minutes perdues pondérées plutôt que sur la demande
+    décrochée : celle-ci ne se déclenche qu'au franchissement du seuil et laisse
+    d'innombrables ex aequo. Les candidats sont déjà espacés.
     """
     classement = dommages.sort_values(
         ["minutes_perdues_ponderees", "demande_decrochee"], ascending=False
@@ -265,7 +244,7 @@ def main() -> None:
         dommages = dommages.sort_values("minutes_perdues_ponderees", ascending=False)
         dommages.to_csv(TABLEAUX / "04_criticite_troncons.csv", index=False)
 
-        # La comparaison des deux classements est un résultat en soi.
+        # L'écart entre les deux classements est un résultat en soi.
         rang_charge = dommages["charge"].rank(ascending=False)
         rang_dommage = dommages["minutes_perdues_ponderees"].rank(ascending=False)
         correlation = rang_charge.corr(rang_dommage, method="spearman")
@@ -283,11 +262,8 @@ def main() -> None:
         coupees_a[idx_a] = True
         log(f"scénario A : {len(idx_a)} points de contrôle")
 
-        # Contrairement au scénario A, l'encerclement coupe toutes les classes de
-        # route, y compris les voies résidentielles et les pistes. Un blocage qui
-        # laisserait les rues de quartier ouvertes n'encerclerait rien : le
-        # contournement par le maillage secondaire est précisément ce que le
-        # scénario cherche à supprimer.
+        # L'encerclement coupe toutes les classes, pistes comprises : un blocage
+        # qui laisserait les rues de quartier ouvertes n'encerclerait rien.
         zmpp = shapely.union_all(communes.loc[communes["zmpp"]].geometry.values)
         coupees_b = aretes_franchissant(zmpp, graphe)
         log(
@@ -297,8 +273,8 @@ def main() -> None:
 
         coupees_c = coupees_a | coupees_b
 
-        # Choc d'offre : les hôpitaux de l'aire métropolitaine cessent de
-        # fonctionner. Le réseau reste intact, seule l'offre disparaît.
+        # Choc d'offre : le réseau reste intact, seuls les hôpitaux de l'aire
+        # métropolitaine cessent de fonctionner.
         sonuc = structures[structures["niveau"] == "SONUC"].copy()
         sonuc["dans_zmpp"] = shapely.contains_xy(
             zmpp, sonuc.geometry.x.to_numpy(), sonuc.geometry.y.to_numpy()
@@ -313,9 +289,9 @@ def main() -> None:
         )
 
     with etape("évaluation des scénarios"):
-        # Le nombre d'hôpitaux ouverts accompagne chaque scénario : plusieurs
-        # structures se rattachent parfois au même sommet du graphe, si bien que
-        # compter les sommets de l'offre en sous-estimerait le total.
+        # Le nombre d'hôpitaux ouverts est porté explicitement : plusieurs
+        # structures se rattachent parfois au même sommet du graphe, et compter
+        # les sommets de l'offre en sous-estimerait le total.
         scenarios = [
             ("Référence, réseau et offre intacts", None, sommets_sonuc, len(sonuc)),
             (f"A. {len(idx_a)} points de contrôle", coupees_a, sommets_sonuc, len(sonuc)),
@@ -380,7 +356,7 @@ def main() -> None:
         pire = minutes_par_scenario[scenarios[-1][0]]
         cellules["decrochee"] = (ref_min <= SEUIL_REFERENCE) & (pire > SEUIL_REFERENCE)
         # inf moins inf vaut NaN et déclenche un avertissement : les cellules
-        # inatteignables dans les deux états sont neutralisées explicitement.
+        # inatteignables dans les deux états sont neutralisées.
         comparable = np.isfinite(pire) & np.isfinite(ref_min)
         cellules["minutes_perdues"] = np.subtract(
             pire, ref_min, out=np.full(len(pire), np.nan), where=comparable

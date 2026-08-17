@@ -54,9 +54,8 @@ print(f"racine : {RACINE}")
 # à ceux du graphe livré.
 
 # %%
-# Ce décompte relit tout le réseau et trie 1,4 million de coordonnées : deux à
-# trois minutes. Le résultat ne dépend que du fichier source, donc on le met en
-# cache pour que réajuster une figure ne coûte plus que quelques secondes.
+# Ce décompte relit tout le réseau et trie 1,4 million de coordonnées, deux à
+# trois minutes. Le résultat ne dépend que du fichier source, d'où le cache.
 CACHE = DATA_TRAITE / "doc_comptage_sommets.json"
 
 if CACHE.exists():
@@ -67,7 +66,7 @@ else:
     col_classe = [c for c in routes.columns if c.lower() == "highway"][0]
     routes = routes.rename(columns={col_classe: "classe"})
     routes["classe"] = routes["classe"].fillna("unclassified").astype(str).str.lower()
-    # Mêmes exclusions que p02 : un transfert obstétrical n'emprunte pas un escalier.
+    # Mêmes exclusions que p02, sans quoi les chiffres ne seraient pas comparables.
     routes = routes[~routes["classe"].isin(CLASSES_EXCLUES)]
     routes = routes[routes["classe"].isin(VITESSES_KMH)]
     routes = routes.to_crs(CRS_METRIQUE)
@@ -106,10 +105,9 @@ print(f"degré médian {np.median(degre):.0f}, sommets de degré >= 4 : {(degre 
 # %%
 fig, (ga, gb) = plt.subplots(1, 2, figsize=(11.5, 4.6), gridspec_kw={"width_ratios": [1, 1.15]})
 
-# -- panneau gauche : d'ou vient reellement la topologie
-# Deux barres empilees plutot que trois barres separees : ce qui compte n'est
-# pas le niveau de chaque denombrement mais la taille relative des deux
-# fusions, et l'arrondi ne pese presque rien.
+# -- panneau gauche : d'ou vient la topologie
+# Barres empilees et non separees : ce qui compte est la taille relative des
+# deux fusions, pas le niveau de chaque denombrement.
 ga.barh([0], [fusions_exactes], color=style.SERIE_1, height=0.5,
         label=f"dédoublonnage exact  {fusions_exactes:,}".replace(",", " "))
 ga.barh([0], [soudes], left=[fusions_exactes], color=style.SERIE_2, height=0.5,
@@ -134,7 +132,7 @@ style.titrer(
     + " points de forme, le dédoublonnage fait tout le travail.",
 )
 
-# -- panneau droit : un carrefour reel, aretes incidentes et sommet partage
+# -- panneau droit : un carrefour reel, aretes incidentes sur un sommet partage
 centre = int(np.argmax(np.where(degre >= 6, degre, 0)))
 cx, cy = graphe.x[centre], graphe.y[centre]
 fenetre = 170
@@ -169,9 +167,8 @@ gb.annotate(f"un seul sommet, {degre[centre]} arêtes incidentes\n"
 gb.set_xlim(cx - fenetre, cx + fenetre)
 gb.set_ylim(cy - fenetre, cy + fenetre)
 gb.set_aspect("equal")
-# Sous-titre laisse vide : sur un panneau large et court, le titre et le
-# sous-titre de habiller_carte se chevauchent. L'information de fenetre est
-# passee dans l'annotation.
+# Sous-titre laisse vide : sur un panneau large et court, titre et sous-titre
+# se chevauchent. La taille de fenetre est passee dans l'annotation.
 style.habiller_carte(gb, "Un carrefour, une fois la topologie rétablie")
 
 fig.tight_layout(w_pad=3.0)

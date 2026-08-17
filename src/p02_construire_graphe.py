@@ -1,16 +1,13 @@
 """
 Étape 2 : construction du graphe routier pondéré en temps de parcours.
 
-Le graphe est construit sommet par sommet à partir des géométries OSM. Chaque
-couple de points consécutifs d'une polyligne devient une arête. Les coordonnées
-sont arrondies au mètre avant d'être dédoublonnées : c'est cet arrondi qui
-recrée la topologie, puisque deux tronçons qui se croisent dans OSM partagent
-exactement le même nœud.
+Chaque couple de points consécutifs d'une polyligne OSM devient une arête. Les
+coordonnées sont arrondies au mètre avant dédoublonnage : c'est ce qui recrée la
+topologie, deux tronçons qui se croisent partageant le même nœud.
 
-Le graphe est traité comme non orienté. Les sens uniques sont ignorés, choix
-assumé : à l'échelle d'un transfert obstétrical inter-communal, l'erreur induite
-est inférieure à l'incertitude sur les vitesses, et l'attribut oneway est très
-inégalement renseigné dans OSM Haïti.
+Le graphe est non orienté. Les sens uniques sont ignorés : à l'échelle d'un
+transfert inter-communal l'erreur reste sous l'incertitude sur les vitesses, et
+l'attribut oneway est très inégalement renseigné dans OSM Haïti.
 
 Sortie : data/processed/graphe.npz
 """
@@ -64,8 +61,7 @@ def charger_routes() -> gpd.GeoDataFrame:
         routes = routes.set_crs(CRS_SOURCE)
     routes = routes.to_crs(CRS_METRIQUE)
 
-    # Une polyligne multiple est décomposée : le graphe se construit sur des
-    # LineString simples.
+    # Le graphe se construit sur des LineString simples.
     routes = routes.explode(index_parts=False, ignore_index=True)
     routes = routes[routes.geometry.geom_type == "LineString"]
     routes = routes[shapely.get_num_coordinates(routes.geometry.values) >= 2]
@@ -86,8 +82,8 @@ def construire(routes: gpd.GeoDataFrame, zmpp) -> dict:
     nb_points = shapely.get_num_coordinates(geoms)
     offsets = np.concatenate([[0], np.cumsum(nb_points)])
 
-    # Toutes les positions sauf le dernier point de chaque polyligne ouvrent une
-    # arête vers la position suivante.
+    # Toute position sauf la dernière de chaque polyligne ouvre une arête vers
+    # la suivante.
     debut_arete = np.ones(len(coords), dtype=bool)
     debut_arete[offsets[1:] - 1] = False
     idx_u = np.nonzero(debut_arete)[0]
@@ -109,7 +105,7 @@ def construire(routes: gpd.GeoDataFrame, zmpp) -> dict:
 
     vitesses = np.array([VITESSES_KMH[c] for c in classe_par_arete], dtype="float64")
 
-    # Congestion urbaine : appliquée si le milieu de l'arête tombe dans la ZMPP.
+    # Congestion urbaine, si le milieu de l'arête tombe dans la ZMPP.
     mx = (coords[idx_u, 0] + coords[idx_v, 0]) / 2
     my = (coords[idx_u, 1] + coords[idx_v, 1]) / 2
     dans_zmpp = shapely.contains_xy(zmpp, mx, my)
@@ -119,7 +115,7 @@ def construire(routes: gpd.GeoDataFrame, zmpp) -> dict:
     # Temps de parcours en minutes.
     temps = longueurs / (vitesses * 1000.0 / 60.0)
 
-    # Arêtes dégénérées (deux sommets confondus après arrondi) : écartées.
+    # Arêtes dégénérées : deux sommets confondus après arrondi.
     valide = (u != v) & (longueurs > 0)
     log(f"arêtes dégénérées écartées : {int((~valide).sum())}")
 

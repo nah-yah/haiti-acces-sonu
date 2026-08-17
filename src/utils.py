@@ -38,11 +38,10 @@ def normaliser(texte: str) -> str:
 
 def trouver_colonne(colonnes, *motifs: str) -> str:
     """
-    Retourne la première colonne dont le nom normalisé contient l'un des motifs.
+    Première colonne dont le nom normalisé contient l'un des motifs.
 
-    Les exports OCHA et HOT OSM changent de casse et de séparateurs d'une version
-    à l'autre (`ADM2_PCODE`, `adm2_pcode`, `Admin2 Pcode`). Chercher par motif
-    évite de casser le pipeline à chaque mise à jour du jeu source.
+    Les exports OCHA et HOT OSM changent de casse et de séparateurs d'une
+    version à l'autre : `ADM2_PCODE`, `adm2_pcode`, `Admin2 Pcode`.
     """
     normalisees = {normaliser(c): c for c in colonnes}
     for motif in motifs:
@@ -60,11 +59,7 @@ def trouver_colonne(colonnes, *motifs: str) -> str:
 
 
 def formater_milliers(valeur: float, decimales: int = 0) -> str:
-    """
-    Formate un nombre avec le point comme séparateur de milliers.
-
-    Convention francophone haïtienne retenue dans les livrables du projet.
-    """
+    """Formate un nombre avec le point comme séparateur de milliers."""
     if pd.isna(valeur):
         return "n.d."
     texte = f"{valeur:,.{decimales}f}"

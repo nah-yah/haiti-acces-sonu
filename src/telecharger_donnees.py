@@ -1,11 +1,9 @@
 """
 Téléchargement des sources externes du projet.
 
-Le script est idempotent : un fichier déjà présent et non vide n'est pas
-retéléchargé. Chaque source est déclarée avec son URL stable et sa page de
-catalogue, pour que la chaîne soit vérifiable par un tiers.
+Idempotent : un fichier déjà présent et non vide n'est pas retéléchargé. Chaque
+source porte son URL stable et sa page de catalogue.
 
-Usage :
     python src/telecharger_donnees.py
     python src/telecharger_donnees.py --forcer
 """
@@ -48,9 +46,8 @@ SOURCES = [
     },
 ]
 
-# Sources reprises du projet QGIS « geospatial-ssr-haiti-2024 » du même auteur,
-# pour garantir que les deux analyses reposent sur les mêmes découpages
-# administratifs et le même millésime de population.
+# Sources reprises du projet QGIS « geospatial-ssr-haiti-2024 » du même auteur :
+# mêmes découpages administratifs et même millésime de population.
 SOURCES_REPRISES = {
     "hti_admin_boundaries/": "OCHA COD-AB Haïti, https://data.humdata.org/dataset/cod-ab-hti",
     "hti_health_facilities/": "HOT OSM Haïti, https://data.humdata.org/dataset/hotosm_hti_health_facilities",

@@ -1,17 +1,17 @@
 """
 Étape 1 : préparation des couches d'entrée.
 
-Produit quatre objets dans data/processed :
+Produit dans data/processed :
 
-  communes.gpkg     140 communes, population 2024, intensité ACLED, appartenance ZMPP
+  communes.gpkg     140 communes, population 2024, intensité ACLED, ZMPP
   structures.gpkg   structures de santé qualifiées SONUB / SONUC
   cellules.parquet  demande obstétricale maillée à 1 km, rattachée à sa commune
   offre_demande.csv récapitulatif de contrôle
 
-Le point délicat est le passage de la population maillée WorldPop 2020 aux
-effectifs communaux 2024 : les cellules sont redressées commune par commune pour
-que leur somme reproduise exactement le total OCHA COD-PS 2024. WorldPop donne la
-forme spatiale de la distribution, le recensement projeté en donne le niveau.
+Point délicat : le passage de WorldPop 2020 aux effectifs communaux 2024. Les
+cellules sont redressées commune par commune pour que leur somme reproduise le
+total OCHA COD-PS 2024. WorldPop donne la forme spatiale de la distribution, le
+recensement projeté en donne le niveau.
 """
 
 from __future__ import annotations
@@ -64,8 +64,7 @@ def lire_csv_tolerant(chemin: Path) -> pd.DataFrame:
 
 def charger_communes() -> gpd.GeoDataFrame:
     communes = gpd.read_file(DATA_BRUT / "hti_admin_boundaries" / "hti_admin2.shp")
-    # Les millésimes COD-AB alternent entre `ADM2_FR` et `adm2_name` : les deux
-    # familles de noms sont donc proposées à la détection.
+    # Les millésimes COD-AB alternent entre `ADM2_FR` et `adm2_name`.
     col_pcode = trouver_colonne(communes.columns, "ADM2_PCODE")
     col_nom = trouver_colonne(communes.columns, "ADM2_FR", "ADM2_EN", "ADM2_NAME")
     col_dept = trouver_colonne(communes.columns, "ADM1_FR", "ADM1_EN", "ADM1_NAME")
@@ -92,9 +91,8 @@ def ajouter_population(communes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     manquantes = [c for c in TRANCHES_FEMMES_15_49 if c not in pop.columns]
     exiger(not manquantes, f"tranches d'âge absentes du fichier population : {manquantes}")
 
-    # La population féminine 15-49 ans n'existe pas comme colonne agrégée : elle
-    # est reconstituée en sommant les sept tranches quinquennales, comme dans le
-    # projet SSR 2024.
+    # Pas de colonne agrégée dans COD-PS : les sept tranches quinquennales sont
+    # sommées, comme dans le projet SSR 2024.
     pop["femmes_15_49"] = pop[TRANCHES_FEMMES_15_49].sum(axis=1)
     pop = pop.rename(columns={"T_TL": "pop_totale"})[
         ["pcode", "pop_totale", "femmes_15_49"]
@@ -105,8 +103,7 @@ def ajouter_population(communes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         communes["pop_totale"].notna().all(),
         "des communes n'ont pas trouvé leur population dans le fichier COD-PS",
     )
-    # Part des femmes en âge de procréer : sert à convertir une cellule de
-    # population totale en cellule de demande obstétricale potentielle.
+    # Convertit une cellule de population totale en demande obstétricale.
     communes["part_femmes_15_49"] = communes["femmes_15_49"] / communes["pop_totale"]
     return communes
 
@@ -116,9 +113,8 @@ def ajouter_intensite_acled(communes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     Intensité des violences contre les civils par commune, sur les
     FENETRE_ACLED_MOIS derniers mois du jeu ACLED.
 
-    Le jeu diffusé sur HDX est agrégé au mois et à la commune : il ne porte pas
-    de coordonnées d'événement. Il sert donc ici à mesurer une intensité
-    communale, pas à localiser un incident.
+    Le jeu HDX est agrégé au mois et à la commune, sans coordonnées d'événement :
+    il mesure une intensité communale, il ne localise pas un incident.
     """
     chemin = DATA_BRUT / "acled_civilian_targeting_adm2.xlsx"
     if not chemin.exists():
@@ -178,8 +174,8 @@ def charger_structures(communes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     healthcare = points[col_healthcare].fillna("").astype(str).str.lower().str.strip()
 
     def classer(a: str, h: str) -> str:
-        # Une pharmacie ou un laboratoire sort du périmètre même s'il porte par
-        # ailleurs une étiquette de soins.
+        # Une pharmacie sort du périmètre même si elle porte par ailleurs une
+        # étiquette de soins.
         if a in TAGS_HORS_PERIMETRE or h in TAGS_HORS_PERIMETRE:
             return "hors_perimetre"
         if h == TAG_SONUC:
@@ -196,7 +192,7 @@ def charger_structures(communes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     structures = points[points["niveau"] != "hors_perimetre"].copy()
     structures = structures[["nom", "niveau", "geometry"]].reset_index(drop=True)
 
-    # Rattachement administratif, utile pour les tableaux par département.
+    # Rattachement administratif, pour les tableaux par département.
     structures = gpd.sjoin(
         structures, communes[["pcode", "commune", "departement", "geometry"]],
         how="left", predicate="within",
@@ -248,7 +244,7 @@ def construire_cellules(communes: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     lignes, colonnes = np.nonzero(agregee >= POP_MIN_CELLULE)
     valeurs = agregee[lignes, colonnes]
 
-    # Centre de chaque cellule agrégée, dans le référentiel du raster source.
+    # Centre de chaque cellule agrégée, référentiel du raster source.
     x = transform.c + (colonnes + 0.5) * f * transform.a
     y = transform.f + (lignes + 0.5) * f * transform.e
 
@@ -275,9 +271,8 @@ def rattacher_et_redresser(
         cellules, communes[colonnes_com], how="left", predicate="within"
     ).drop(columns=["index_right"])
 
-    # Les cellules du littoral tombent parfois hors polygone du fait de la
-    # généralisation du trait de côte. Elles sont rattachées au plus proche
-    # plutôt que perdues.
+    # Les cellules du littoral tombent parfois hors polygone, le trait de côte
+    # étant généralisé. Rattachées au plus proche plutôt que perdues.
     orphelines = dedans["pcode"].isna()
     if orphelines.any():
         log(f"rattachement au plus proche pour {int(orphelines.sum())} cellules côtières")
@@ -293,8 +288,7 @@ def rattacher_et_redresser(
     dedans = dedans[dedans["pcode"].notna()].copy()
 
     # Redressement : la somme des cellules d'une commune doit valoir son
-    # effectif COD-PS 2024. Le facteur est borné pour signaler les communes où
-    # WorldPop et le recensement projeté divergent fortement.
+    # effectif COD-PS 2024.
     totaux_2020 = dedans.groupby("pcode")["pop_2020"].transform("sum")
     cible = dedans["pcode"].map(communes.set_index("pcode")["pop_totale"])
     facteur = np.where(totaux_2020 > 0, cible / totaux_2020, 0.0)

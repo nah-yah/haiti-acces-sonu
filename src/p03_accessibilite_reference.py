@@ -1,29 +1,21 @@
 """
 Étape 3 : accessibilité de référence, réseau intact.
 
-Trois définitions de l'offre sont mesurées séparément, parce que la donnée ne
-permet pas d'en trancher une seule :
+Trois définitions de l'offre, la donnée ne permettant pas d'en trancher une :
 
-  SONUC          198 points dont les étiquettes `amenity` et `healthcare`
-                 concordent sur « hôpital ». Définition retenue pour la suite
-                 de l'analyse : c'est la borne prudente.
-  SONUC élargi   les 198 précédents plus 986 points portant `amenity=hospital`
-                 sans confirmation. Borne haute, presque certainement
-                 optimiste.
-  Toute offre    l'ensemble des structures de soins, cliniques comprises.
-                 Décrit l'accès à la première ligne, pas à la césarienne.
+  SONUC          198 points dont `amenity` et `healthcare` concordent sur
+                 « hôpital ». Borne prudente, retenue pour la suite.
+  SONUC élargi   plus 986 points portant `amenity=hospital` sans confirmation.
+                 Borne haute, presque certainement optimiste.
+  Toute offre    toutes les structures de soins, cliniques comprises. Décrit
+                 l'accès à la première ligne, pas à la césarienne.
 
-L'écart entre les deux premières bornes est la mesure directe de ce que
-l'incertitude sur les étiquettes OSM coûte à l'analyse. Le publier vaut mieux
-que de choisir en silence.
-
-Une hémorragie du post-partum ou une dystocie se traite au bloc, pas au
-dispensaire : c'est la première ligne du tableau qui répond à la question du
-commanditaire.
+L'écart entre les deux premières bornes mesure ce que l'incertitude sur les
+étiquettes OSM coûte à l'analyse.
 
 Sorties :
   data/processed/cellules_reference.parquet
-  data/processed/reference.npz            distances et prédécesseurs réutilisés par l'étape 4
+  data/processed/reference.npz   distances et prédécesseurs repris à l'étape 4
   outputs/tables/03_*.csv
 """
 
@@ -127,8 +119,8 @@ def main() -> None:
     with etape("Dijkstra multi-sources, une passe par définition de l'offre"):
         predecesseurs = sources = None
         for libelle, colonne in colonnes_temps.items():
-            # Les itinéraires ne sont conservés que pour la définition retenue :
-            # ce sont eux qui serviront à mesurer la criticité des tronçons.
+            # Itinéraires conservés pour la seule définition retenue : ils
+            # servent à mesurer la criticité des tronçons à l'étape 4.
             garder_chemins = libelle == "SONUC"
             minutes, pred, src = temps_vers_offre(
                 graphe, sommets_offre[libelle], sommets_demande, minutes_acces,

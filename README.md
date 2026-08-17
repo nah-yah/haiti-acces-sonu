@@ -89,7 +89,7 @@ La vulnérabilité du réseau n'est donc pas répartie uniformément : elle se l
 
 | Scénario                             | À 30 min   | À 60 min | Médiane    | Demande décrochée |
 | ------------------------------------ | ---------- | -------- | ---------- | ----------------- |
-| Référence                            | 56,9 %     | 78,1 %   | 19 min     | —                 |
+| Référence                            | 56,9 %     | 78,1 %   | 19 min     | 0                 |
 | A. 10 points de contrôle             | 56,6 %     | 77,3 %   | 19 min     | 23 131            |
 | B. Encerclement de la ZMPP           | 55,8 %     | 76,3 %   | 20 min     | 57 056            |
 | C. A et B cumulés                    | 55,4 %     | 75,6 %   | 20 min     | 80 186            |
@@ -244,7 +244,7 @@ Network vulnerability is therefore not evenly spread: it sits in the segments wi
 
 | Scenario                     | Within 30 min | Within 60 min | Median     | Demand losing access |
 | ---------------------------- | ------------- | ------------- | ---------- | -------------------- |
-| Reference                    | 56.9 %        | 78.1 %        | 19 min     | —                    |
+| Reference                    | 56.9 %        | 78.1 %        | 19 min     | 0                    |
 | A. 10 checkpoints            | 56.6 %        | 77.3 %        | 19 min     | 23,131               |
 | B. ZMPP encirclement         | 55.8 %        | 76.3 %        | 20 min     | 57,056               |
 | C. A and B combined          | 55.4 %        | 75.6 %        | 20 min     | 80,186               |

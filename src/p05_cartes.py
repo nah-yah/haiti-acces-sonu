@@ -1,8 +1,8 @@
 """
 Étape 5 : cartes et graphiques.
 
-Sept sorties dans outputs/figures, plus une carte interactive.
-Chaque figure répond à une question, et une seule.
+Sept figures dans outputs/figures, plus une carte interactive. Chaque figure
+répond à une question, et une seule.
 """
 
 from __future__ import annotations
@@ -77,8 +77,8 @@ def fig_accessibilite(cellules, communes, structures) -> None:
         c=np.clip(minutes[fini][tri], 0, 240),
         cmap=style.CMAP_TEMPS, s=2.2, marker="s", linewidths=0, vmin=0, vmax=240,
     )
-    # Ces cellules ne sont pas hors du réseau routier : elles appartiennent à un
-    # sous-réseau qui ne contient aucun hôpital. Îles et vallées isolées d'OSM.
+    # Ces cellules ne sont pas hors réseau : elles tiennent à un sous-réseau
+    # sans hôpital, îles et vallées isolées d'OSM.
     ax.scatter(
         cellules["xm"].to_numpy()[~fini], cellules["ym"].to_numpy()[~fini],
         color=style.STATUT_CRITIQUE, s=2.6, marker="x", linewidths=0.45,
@@ -112,10 +112,9 @@ def fig_couverture_communes(communes) -> None:
     carte = communes.merge(table[["pcode", colonne]], on="pcode", how="left")
     sans_couverture = int((carte[colonne] == 0).sum())
 
-    # C'est le déficit qui est tracé, non la couverture. Une rampe séquentielle
-    # va du clair au foncé quand la grandeur augmente ; cartographier la
-    # couverture obligerait à inverser la rampe, et un lecteur pressé lirait
-    # alors le foncé comme « beaucoup », c'est-à-dire l'inverse du message.
+    # Le déficit est tracé, non la couverture : cartographier la couverture
+    # obligerait à inverser la rampe, et le lecteur lirait le foncé comme
+    # « beaucoup », soit l'inverse du message.
     carte["deficit"] = 1 - carte[colonne]
 
     fig, ax = plt.subplots(figsize=(11, 7))
@@ -213,10 +212,9 @@ def fig_courbe_degradation() -> None:
     """Perte de couverture en fonction du nombre de points de contrôle."""
     courbe = pd.read_csv(TABLEAUX / "04_courbe_degradation.csv")
 
-    # L'indicateur est exprimé en nombre de femmes plutôt qu'en pourcentage.
-    # En pourcentage, l'écart tient dans moins d'un point, et un axe cadré sur
-    # cette plage donnerait à une variation de 0,8 point l'allure d'un
-    # effondrement. En effectifs, l'axe part de zéro et la lecture est honnête.
+    # En effectifs et non en pourcentage : l'écart tient dans moins d'un point,
+    # et un axe cadré sur cette plage donnerait à 0,8 point l'allure d'un
+    # effondrement. En effectifs, l'axe part de zéro.
     base = courbe.loc[courbe["n_points_controle"] == 0, f"part_{SEUIL_REFERENCE}min"].iloc[0]
     total = courbe["demande_totale"].iloc[0]
     y = (base - courbe[f"part_{SEUIL_REFERENCE}min"]) * total
@@ -227,8 +225,7 @@ def fig_courbe_degradation() -> None:
     ax.scatter(courbe["n_points_controle"], y, color=style.SERIE_1, s=36,
                zorder=4, edgecolor=style.SURFACE, linewidths=2)
 
-    # Étiquetage sélectif : le premier point et le dernier suffisent à lire la
-    # forme, un chiffre sur chaque marqueur n'ajouterait que de l'encre.
+    # Premier et dernier point seulement : ils suffisent à lire la forme.
     for i in (1, len(courbe) - 1):
         ax.annotate(
             f"{y.iloc[i]:,.0f}".replace(",", " "),
@@ -269,9 +266,7 @@ def fig_synthese_scenarios() -> None:
             ax.text(xi, v + 1.2, f"{v:.0f}", ha="center", fontsize=8.5,
                     color=style.ENCRE_SECONDAIRE)
 
-    # Étiquettes courtes : les libellés complets des scénarios sont dans le
-    # tableau exporté, les répéter sous six groupes de barres les rendrait
-    # illisibles.
+    # Libellés courts : les intitulés complets sont dans le tableau exporté.
     courts = {
         "Référence, réseau et offre intacts": "Référence",
         "B. Encerclement de la ZMPP": "B\nencerclement\nde la ZMPP",
@@ -324,10 +319,10 @@ def fig_communes_touchees() -> None:
     enregistrer(fig, "fig07_communes_touchees.png")
 
 
-# Fonds de carte séparés en deux couches. Le fond sans étiquettes passe sous le
-# choroplèthe, les étiquettes repassent au-dessus dans un calque dédié. Sans
-# cette séparation, les noms de villes se retrouvent enfouis sous les aplats,
-# puisque Leaflet place toutes les tuiles dans un plan inférieur aux polygones.
+# Fond de carte scindé en deux couches : le fond nu passe sous le choroplèthe,
+# les noms de lieux repassent au-dessus dans un calque dédié. Sans cette
+# séparation ils seraient enfouis sous les aplats, Leaflet plaçant toutes les
+# tuiles dans un plan inférieur aux polygones.
 TUILES_FOND = "https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png"
 TUILES_ETIQUETTES = "https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}{r}.png"
 ATTRIBUTION = (
@@ -340,10 +335,8 @@ def _legende_html(sans_couverture: int) -> str:
     """
     Bandeau réunissant titre, échelle de couleur et notice de lecture.
 
-    L'échelle est dessinée ici plutôt que par la barre de couleur de branca, qui
-    se place d'autorité en haut à droite et vient buter contre le sélecteur de
-    couches. La rassembler avec le texte qui l'explique évite au lecteur de
-    chercher la clé de lecture à l'autre bout de l'écran.
+    L'échelle est dessinée ici plutôt que par la barre de branca, qui se place
+    d'autorité en haut à droite et bute contre le sélecteur de couches.
     """
     degrade = ", ".join(style.RAMPE_BLEUE)
     return f"""
@@ -399,8 +392,7 @@ def carte_interactive(communes, structures, controles, critiques, cellules) -> N
         .merge(impact[["pcode", "demande_decrochee", "part_decrochee"]],
                on="pcode", how="left")
     )
-    # Simplification à 100 m : sous l'épaisseur du trait à toute échelle utile,
-    # et le fichier html passe de plusieurs mégaoctets à une taille raisonnable.
+    # Simplification à 100 m, sous l'épaisseur du trait à toute échelle utile.
     carte_gdf["geometry"] = carte_gdf.geometry.simplify(100)
     carte_gdf = carte_gdf.to_crs("EPSG:4326")
     carte_gdf["deficit"] = 1 - carte_gdf[colonne]
@@ -413,18 +405,17 @@ def carte_interactive(communes, structures, controles, critiques, cellules) -> N
     m = folium.Map(
         tiles=None,
         control_scale=True,          # échelle métrique en bas à gauche
-        prefer_canvas=True,          # rendu canvas : indispensable avec 700 marqueurs
+        prefer_canvas=True,          # indispensable avec 700 marqueurs
     )
-    # Cadrage sur l'emprise réelle du pays plutôt que sur un niveau de zoom fixe :
-    # un zoom en dur donne un cadrage juste sur l'écran de celui qui l'a choisi,
-    # et laisse Cuba occuper la moitié de l'image sur tous les autres.
+    # Cadrage sur l'emprise réelle plutôt que sur un zoom fixe, qui ne serait
+    # juste que sur l'écran de celui qui l'a choisi.
     ouest, sud, est, nord = carte_gdf.total_bounds
     m.fit_bounds([[sud, ouest], [nord, est]], padding=(12, 12))
     folium.TileLayer(
         tiles=TUILES_FOND, attr=ATTRIBUTION, name="Fond de carte", control=False
     ).add_to(m)
 
-    # La rampe sert au calcul des couleurs ; son rendu de légende est repris à la
+    # La rampe ne sert qu'au calcul des couleurs, sa légende est reprise à la
     # main dans le bandeau, voir _legende_html.
     echelle = LinearColormap(colors=style.RAMPE_BLEUE, vmin=0, vmax=100)
 
@@ -462,7 +453,7 @@ def carte_interactive(communes, structures, controles, critiques, cellules) -> N
             color=style.SERIE_1,
             weight=1.5 + 4.5 * (r["charge_demande"] / charge_max) ** 0.5,
             opacity=0.8,
-            tooltip=f"{r['classe']} — charge : {r['charge_demande']:,.0f} femmes".replace(",", " "),
+            tooltip=f"{r['classe']}, charge : {r['charge_demande']:,.0f} femmes".replace(",", " "),
         ).add_to(groupe_t)
 
     # ---- Cellules décrochées ------------------------------------------------
@@ -475,7 +466,7 @@ def carte_interactive(communes, structures, controles, critiques, cellules) -> N
             [r["y"], r["x"]], radius=3, color=style.STATUT_CRITIQUE,
             fill=True, fill_opacity=0.55, weight=0,
             tooltip=(
-                f"{r['commune']} — {r['demande_obstetricale']:,.0f} femmes, "
+                f"{r['commune']} : {r['demande_obstetricale']:,.0f} femmes, "
                 f"{r['minutes_perdues']:,.0f} min perdues".replace(",", " ")
             ),
         ).add_to(groupe_p)
@@ -497,10 +488,8 @@ def carte_interactive(communes, structures, controles, critiques, cellules) -> N
         name=f"Points de contrôle simulés ({len(controles)})"
     ).add_to(m)
 
-    # Classés par dommage décroissant : le rang porté par la pastille est
-    # l'information utile, un tronçon isolé sur la carte ne dit pas ce qu'il
-    # coûte. Le tronçon lui-même mesure quelques dizaines de mètres et
-    # disparaîtrait sans cette pastille.
+    # Classés par dommage décroissant : c'est le rang porté par la pastille qui
+    # est lisible, le tronçon lui-même mesurant quelques dizaines de mètres.
     ordonnes = controles.to_crs("EPSG:4326").sort_values(
         "demande_decrochee", ascending=False
     ).reset_index(drop=True)
@@ -523,12 +512,16 @@ def carte_interactive(communes, structures, controles, critiques, cellules) -> N
             [milieu.y, milieu.x], radius=9,
             color=style.STATUT_CRITIQUE, fill=True, fill_color=style.STATUT_CRITIQUE,
             fill_opacity=0.30, weight=2.2,
-            tooltip=f"n° {rang + 1} — {r['demande_decrochee']:,.0f} femmes".replace(",", " "),
+            tooltip=f"n° {rang + 1} : {r['demande_decrochee']:,.0f} femmes".replace(",", " "),
             popup=folium.Popup(infobulle, max_width=280),
         ).add_to(groupe_c)
 
     # ---- Étiquettes au-dessus des aplats ------------------------------------
-    CustomPane("etiquettes", z_index=650, pointer_events=False).add_to(m)
+    # 450 place le calque au-dessus de l'overlayPane (400), qui porte le
+    # choroplèthe, et sous le tooltipPane (650) et le popupPane (700). À 650 il
+    # partageait le rang des infobulles et, créé après elles, passait devant :
+    # les noms de lieux s'affichaient alors par-dessus le texte des infobulles.
+    CustomPane("etiquettes", z_index=450, pointer_events=False).add_to(m)
     folium.TileLayer(
         tiles=TUILES_ETIQUETTES, attr=ATTRIBUTION, name="Noms de lieux",
         overlay=True, control=True, pane="etiquettes",

@@ -2,12 +2,10 @@
 Noyau de calcul d'accessibilité, partagé par l'analyse de référence et les
 scénarios de blocage.
 
-Le calcul repose sur un Dijkstra multi-sources : au lieu de lancer un plus court
-chemin depuis chacune des dizaines de milliers de cellules de demande, on part
-simultanément de toutes les structures de santé et on propage vers le réseau.
-Le graphe étant non orienté, la distance d'une structure à un nœud est aussi la
-distance de ce nœud à la structure. Un seul parcours suffit donc pour obtenir,
-en tout point du réseau, le temps vers la structure la plus proche.
+Dijkstra multi-sources : plutôt qu'un plus court chemin depuis chacune des
+dizaines de milliers de cellules, on part simultanément de toutes les structures
+et on propage vers le réseau. Le graphe étant non orienté, un seul parcours donne
+en tout point le temps vers la structure la plus proche.
 """
 
 from __future__ import annotations
@@ -55,13 +53,11 @@ class Graphe:
     def _dedoublonner(self) -> None:
         """
         Regroupe une fois pour toutes les arêtes reliant le même couple de
-        sommets.
+        sommets, en retenant la plus rapide.
 
-        Deux tronçons OSM peuvent relier les deux mêmes sommets ; il faut alors
-        retenir le plus rapide, car laisser scipy sommer les doublons gonflerait
-        le temps de parcours. Ce regroupement coûte cher et ne dépend pas du
-        scénario : le faire à chaque évaluation dominerait le temps de calcul
-        d'une simulation, très au-delà du Dijkstra lui-même.
+        Laisser scipy sommer les doublons gonflerait le temps de parcours. Le
+        regroupement coûte cher et ne dépend pas du scénario : le refaire à
+        chaque évaluation dominerait le coût d'une simulation.
         """
         if hasattr(self, "_groupes"):
             return
@@ -91,18 +87,16 @@ class Graphe:
         """
         Matrice creuse du graphe, en minutes.
 
-        `aretes_coupees` est un masque booléen sur les arêtes : celles marquées
-        vraies sont retirées du réseau. C'est le mécanisme par lequel un point
-        de contrôle est simulé, plutôt qu'un simple ralentissement, parce qu'un
-        barrage tenu par un groupe armé ne se contourne pas au ralenti.
+        `aretes_coupees` est un masque booléen : les arêtes marquées sont
+        retirées du réseau. Un point de contrôle est simulé par retrait et non
+        par ralentissement, un barrage tenu ne se franchissant pas au ralenti.
         """
         self._dedoublonner()
         temps = self._grp_t.copy()
 
         if aretes_coupees is not None and aretes_coupees.any():
-            # Seuls les groupes touchés par une coupure sont recalculés. Si un
-            # couple de sommets est relié par deux tronçons et qu'un seul est
-            # coupé, l'autre subsiste et le lien reste ouvert.
+            # Seuls les groupes touchés sont recalculés. Si deux tronçons
+            # relient le même couple et qu'un seul est coupé, le lien subsiste.
             touches = np.unique(self._groupes[aretes_coupees])
             for g in touches:
                 membres = self._ordre_par_groupe[self._debuts[g]:self._fins[g]]
@@ -139,8 +133,7 @@ def rattacher(graphe: Graphe, x: np.ndarray, y: np.ndarray) -> tuple[np.ndarray,
 
     Retourne l'indice du sommet et le temps du segment terminal, en minutes.
     Au-delà de DISTANCE_MAX_RATTACHEMENT_M le temps vaut l'infini : le point est
-    hors de portée du réseau carrossable et il serait trompeur de lui attribuer
-    une marche de plusieurs heures comme s'il s'agissait d'un trajet ordinaire.
+    hors de portée du réseau carrossable.
     """
     distance, sommet = graphe.arbre().query(np.column_stack([x, y]), k=1)
     minutes = distance * FACTEUR_DETOUR / (VITESSE_ACCES_KMH * 1000.0 / 60.0)
@@ -159,9 +152,9 @@ def temps_vers_offre(
     """
     Temps de trajet de chaque point de demande vers l'offre la plus proche.
 
-    Retourne un tableau de minutes (infini si aucune structure n'est atteignable
-    par la route), et si demandé les tableaux de prédécesseurs et de sources qui
-    permettent de reconstituer les itinéraires.
+    Minutes, infini si aucune structure n'est atteignable par la route. Si
+    demandé, les prédécesseurs et sources permettant de reconstituer les
+    itinéraires.
     """
     matrice = graphe.matrice(aretes_coupees)
     resultat = dijkstra(
@@ -190,10 +183,8 @@ def flux_par_arete(
     Charge de demande portée par chaque arête du réseau.
 
     On remonte l'itinéraire de chaque cellule vers sa structure de rattachement
-    et on cumule sa demande obstétricale sur chaque tronçon emprunté. Un tronçon
-    très chargé est un tronçon dont la coupure prive beaucoup de femmes de leur
-    accès le plus court : c'est cette charge, et non la simple centralité
-    topologique du réseau, qui identifie les points de contrôle qui comptent.
+    et on cumule sa demande obstétricale sur les tronçons empruntés. C'est cette
+    charge, et non la centralité topologique, qui sert de présélection.
     """
     n = graphe.n_sommets
     charge_sommet_paire: dict[tuple[int, int], float] = {}
@@ -211,7 +202,7 @@ def flux_par_arete(
             precedent = predecesseurs[courant]
             garde_fou += 1
 
-    # Report de la charge, indexée par paire de sommets, sur les arêtes.
+    # Report de la charge, indexée par paire de sommets, vers les arêtes.
     a = np.minimum(graphe.u, graphe.v)
     b = np.maximum(graphe.u, graphe.v)
     charge = np.zeros(len(graphe.u), dtype="float64")
@@ -234,11 +225,10 @@ def composantes(graphe: Graphe) -> np.ndarray:
 
 def mediane_ponderee(valeurs: np.ndarray, poids: np.ndarray) -> float:
     """
-    Médiane pondérée, calculée sur les seules valeurs finies.
+    Médiane pondérée, sur les seules valeurs finies.
 
-    La médiane est préférée à la moyenne : la distribution des temps de trajet
-    est très dissymétrique, quelques cellules très isolées tirant la moyenne
-    bien au-dessus de ce que vit la population type.
+    Préférée à la moyenne : la distribution des temps est très dissymétrique et
+    quelques cellules isolées tirent la moyenne loin de la population type.
     """
     valeurs = np.asarray(valeurs, dtype="float64")
     poids = np.asarray(poids, dtype="float64")

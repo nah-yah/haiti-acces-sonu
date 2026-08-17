@@ -2,8 +2,6 @@
 Paramètres partagés du projet « Accès aux SONU sous blocage routier, Haïti ».
 
 Tout paramètre de modélisation est déclaré ici, jamais en dur dans les scripts.
-Chaque valeur est accompagnée de sa justification, parce qu'un paramètre non
-justifié est un paramètre non défendable devant un bailleur.
 """
 
 from pathlib import Path
@@ -26,31 +24,20 @@ for _d in (DATA_TRAITE, FIGURES, TABLEAUX):
 # Systèmes de coordonnées
 # --------------------------------------------------------------------------
 
-# Les données sources sont en WGS 84 géographique.
 CRS_SOURCE = "EPSG:4326"
 
-# Haïti tient entièrement dans le fuseau UTM 18 Nord. Toute mesure de distance,
-# de longueur d'arête et de rayon de rattachement se fait dans ce système, en
-# mètres. Calculer une longueur en degrés décimaux serait une erreur : un degré
-# de longitude vaut environ 108 km à l'équateur et 0 km au pôle.
+# Haïti tient dans le fuseau UTM 18 Nord. Toute mesure de distance se fait dans
+# ce système, en mètres, jamais en degrés décimaux.
 CRS_METRIQUE = "EPSG:32618"
 
 # --------------------------------------------------------------------------
 # Réseau routier : vitesses de parcours
 # --------------------------------------------------------------------------
 
-# Vitesses moyennes de parcours en km/h, par classe OpenStreetMap.
-#
-# Ce ne sont pas des vitesses réglementaires mais des vitesses effectives de
-# porte à porte, volontairement basses. Le réseau haïtien combine revêtement
-# dégradé, franchissements de ravines non bitumés et traversées d'agglomération
-# sans voie réservée. Retenir les vitesses réglementaires produirait des
-# isochrones optimistes de 30 à 50 %, ce qui est le biais classique des analyses
-# d'accessibilité fondées sur OSM.
-#
-# Ordre de grandeur retenu : un trajet Port-au-Prince - Saint-Marc (environ
-# 95 km par la RN1) ressort autour de 2 h, ce qui correspond aux temps de
-# parcours couramment rapportés hors période de blocage.
+# Vitesses effectives de porte à porte en km/h, par classe OSM, volontairement
+# basses : le réseau haïtien combine revêtement dégradé, ravines non bitumées et
+# traversées d'agglomération. Les vitesses réglementaires donneraient des
+# isochrones optimistes de 30 à 50 %.
 VITESSES_KMH = {
     "motorway": 70,
     "motorway_link": 45,
@@ -70,69 +57,53 @@ VITESSES_KMH = {
     "track": 12,
 }
 
-# Classes OSM exclues du graphe carrossable : un transfert obstétrical ne passe
-# pas par un sentier piéton ou un escalier.
+# Classes non carrossables : un transfert obstétrical ne passe pas par un
+# sentier ni un escalier.
 CLASSES_EXCLUES = {
     "footway", "path", "pedestrian", "steps", "cycleway", "bridleway",
     "corridor", "platform", "raceway", "construction", "proposed",
     "escape", "busway", "elevator",
 }
 
-# Facteur de congestion appliqué aux vitesses à l'intérieur de l'aire
-# métropolitaine de Port-au-Prince. Une valeur de 0,55 signifie que l'on retient
-# 55 % de la vitesse de classe. La ZMPP cumule densité, marchés de rue occupant
-# la chaussée et carrefours non régulés ; les vitesses observées en journée y
-# tombent couramment sous 15 km/h sur les axes secondaires.
+# Part de la vitesse de classe retenue dans l'aire métropolitaine de
+# Port-au-Prince, où les vitesses observées tombent sous 15 km/h en journée.
 FACTEUR_CONGESTION_ZMPP = 0.55
 
 # --------------------------------------------------------------------------
 # Rattachement de la demande au réseau
 # --------------------------------------------------------------------------
 
-# Vitesse du segment terminal, entre le centre de la cellule de population et le
-# nœud routier le plus proche. Ce segment est parcouru à pied ou en moto-taxi
-# sur piste ; 4 km/h est la vitesse de marche standard en terrain non plat.
+# Segment terminal, du centre de cellule au nœud routier : marche ou moto-taxi
+# sur piste.
 VITESSE_ACCES_KMH = 4.0
 
-# Les déplacements réels ne suivent pas la ligne droite. La distance euclidienne
-# du centre de cellule au nœud routier est multipliée par ce facteur de détour.
+# Les déplacements réels ne suivent pas la ligne droite.
 FACTEUR_DETOUR = 1.3
 
-# Au-delà de cette distance à vol d'oiseau, on considère que la cellule n'est pas
-# rattachable au réseau carrossable et son temps de trajet est marqué comme non
-# atteignable plutôt que gonflé artificiellement par une très longue marche.
+# Au-delà, la cellule est déclarée non rattachable plutôt que dotée d'un temps
+# gonflé par une marche de plusieurs heures.
 DISTANCE_MAX_RATTACHEMENT_M = 10_000
 
 # --------------------------------------------------------------------------
 # Offre de soins
 # --------------------------------------------------------------------------
 
-# OpenStreetMap ne porte aucun attribut décrivant la capacité obstétricale
-# réelle d'une structure. La qualification ci-dessous est un proxy construit sur
-# les attributs disponibles, et non une donnée observée.
+# OSM ne porte aucun attribut de capacité obstétricale : la qualification
+# ci-dessous est un proxy, pas une donnée observée.
 #
-# Le jeu haïtien impose une précaution supplémentaire. L'étiquette
-# `amenity=hospital` y est posée sur 1 185 points, un chiffre sans rapport avec
-# le parc hospitalier réel du pays : c'est une séquelle de la cartographie
-# d'urgence de 2010, où dispensaires et centres de santé ont été saisis comme
-# hôpitaux. L'étiquette `healthcare=hospital`, plus tardive et mieux tenue, n'en
-# retient que 198, ordre de grandeur cohérent avec le parc recensé par le
-# ministère de la Santé publique et de la Population.
+# Le jeu haïtien impose une précaution. `amenity=hospital` est posé sur 1 185
+# points, séquelle de la cartographie d'urgence de 2010 où dispensaires et
+# centres de santé ont été saisis comme hôpitaux. `healthcare=hospital`, plus
+# tardif, n'en retient que 198, ordre de grandeur cohérent avec le parc du MSPP.
+# D'où trois niveaux, et une analyse menée sur deux bornes :
 #
-# Trois niveaux sont donc distingués, et l'analyse est menée sur deux bornes
-# plutôt que sur un chiffre unique.
-#
-#   SONUC          les deux étiquettes concordent : capacité chirurgicale
-#                  présumée. Borne basse de l'offre.
-#   HOPITAL_NC     `amenity=hospital` sans confirmation par `healthcare`.
-#                  Un établissement existe, sa nature reste incertaine.
-#   SONUB          cliniques, cabinets, centres de santé : première ligne,
-#                  sans césarienne.
+#   SONUC        les deux étiquettes concordent, capacité chirurgicale présumée
+#   HOPITAL_NC   `amenity=hospital` seul, nature de l'établissement incertaine
+#   SONUB        cliniques et centres de santé, première ligne sans césarienne
 TAG_SONUC = "hospital"
 TAGS_SONUB = {"clinic", "doctors", "doctor", "health_post", "health_centre", "centre", "yes"}
 
-# Points de santé sans rôle possible dans une urgence obstétricale : ils sont
-# écartés du périmètre, quel que soit leur niveau.
+# Points de santé sans rôle possible dans une urgence obstétricale.
 TAGS_HORS_PERIMETRE = {
     "pharmacy", "dentist", "laboratory", "blood_donation", "physiotherapist",
     "psychotherapist", "massage_therapy", "counselling", "veterinary",
@@ -143,17 +114,10 @@ TAGS_HORS_PERIMETRE = {
 # Seuils d'accessibilité
 # --------------------------------------------------------------------------
 
-# 120 minutes est le seuil de planification usuel dans la littérature sur l'accès
-# aux SONU complets. Il n'est pas retenu ici comme indicateur principal, pour une
-# raison mesurée sur ces données : la couverture de départ y atteint 94 %, si
-# bien que l'indicateur ne bouge presque plus quoi qu'on simule. Un indicateur
-# saturé ne mesure rien.
-#
-# Le seuil de référence est donc fixé à 60 minutes. Ce choix est aussi le mieux
-# fondé cliniquement : l'hémorragie du post-partum, première cause de mortalité
-# maternelle, tue en une à deux heures sans prise en charge, et la césarienne
-# d'urgence se compte en dizaines de minutes. Les deux autres seuils restent
-# publiés pour permettre la comparaison avec les études existantes.
+# Le seuil de 120 minutes, usuel dans la littérature, est publié mais pas retenu
+# comme indicateur principal : la couverture de départ y atteint 94 %, si bien
+# qu'il ne bouge presque plus quoi qu'on simule. 60 minutes est aussi le mieux
+# fondé cliniquement, l'hémorragie du post-partum tuant en une à deux heures.
 SEUILS_MINUTES = (30, 60, 120)
 SEUIL_REFERENCE = 60
 
@@ -161,55 +125,42 @@ SEUIL_REFERENCE = 60
 # Population
 # --------------------------------------------------------------------------
 
-# WorldPop est diffusé à 3 secondes d'arc, soit environ 100 m. Router depuis
-# chaque cellule de 100 m serait inutilement coûteux et faussement précis au
-# regard de la résolution du réseau routier. Les cellules sont agrégées par
-# blocs de FACTEUR_AGREGATION x FACTEUR_AGREGATION, soit environ 1 km.
+# WorldPop est diffusé à environ 100 m. Les cellules sont agrégées par blocs de
+# FACTEUR_AGREGATION de côté, soit environ 1 km : router depuis chaque cellule
+# de 100 m serait coûteux et faussement précis au regard du réseau routier.
 FACTEUR_AGREGATION = 10
 
-# Une cellule agrégée portant moins de cet effectif est écartée : elle
-# représente du bruit de désagrégation, pas un lieu de vie.
+# En deçà, une cellule agrégée relève du bruit de désagrégation.
 POP_MIN_CELLULE = 10.0
 
 # --------------------------------------------------------------------------
 # Scénarios de blocage
 # --------------------------------------------------------------------------
 
-# Fenêtre ACLED retenue pour mesurer l'intensité des violences contre les
-# civils, en mois précédant la date d'extraction du jeu.
+# Fenêtre ACLED, en mois précédant la date d'extraction du jeu.
 FENETRE_ACLED_MOIS = 24
 
 # Les communes exposées sont celles qui, classées par nombre d'événements
-# décroissant, cumulent cette part du total national.
-#
-# Un seuil par quantile a d'abord été essayé, et écarté : la distribution est si
-# concentrée que le troisième quartile vaut zéro événement, si bien que le
-# critère revenait à retenir toute commune ayant connu un seul incident en deux
-# ans. Le critère par part cumulée suit la concentration réelle du phénomène au
-# lieu de la contredire.
+# décroissant, cumulent cette part du total national. Un seuil par quantile a
+# été écarté : la distribution est si concentrée que le troisième quartile vaut
+# zéro événement.
 PART_EVENEMENTS_EXPOSEES = 0.80
 
 # Nombre de points de contrôle posés dans le scénario diffus.
 N_POINTS_CONTROLE = 10
 
-# Nombre de tronçons présélectionnés sur leur charge, puis évalués un par un par
-# recalcul complet de l'accessibilité.
-#
-# Ce double filtre corrige une erreur de raisonnement tentante : le tronçon le
-# plus fréquenté n'est pas le plus critique. En zone dense, une artère très
-# chargée se contourne par le maillage voisin, et sa coupure ne coûte que
-# quelques minutes. Ce qui fait mal, c'est le tronçon sans alternative, souvent
-# modestement fréquenté. Seul un recalcul le révèle ; la charge ne sert qu'à
-# ramener le champ des candidats à une taille calculable.
+# Tronçons présélectionnés sur leur charge, puis évalués un par un par recalcul
+# complet. Le tronçon le plus fréquenté n'est pas le plus critique : en zone
+# dense une artère chargée se contourne. La charge ne sert qu'à ramener le champ
+# des candidats à une taille calculable.
 N_CANDIDATS_EVALUES = 150
 
-# Deux points de contrôle ne peuvent pas être posés à moins de cette distance
-# l'un de l'autre. Sans cette contrainte, l'algorithme sélectionne vingt arêtes
-# consécutives du même axe, ce qui décrit un seul barrage et non vingt.
+# Espacement minimal entre deux points de contrôle. Sans cette contrainte,
+# l'algorithme retient vingt arêtes consécutives du même axe, ce qui décrit un
+# seul barrage.
 ESPACEMENT_MIN_CONTROLES_M = 3_000
 
-# Communes composant l'aire métropolitaine de Port-au-Prince (ZMPP).
-# Codes ADM2 OCHA.
+# Communes de l'aire métropolitaine de Port-au-Prince (ZMPP), codes ADM2 OCHA.
 PCODES_ZMPP = [
     "HT0111",  # Port-au-Prince
     "HT0112",  # Delmas
@@ -226,6 +177,5 @@ PCODES_ZMPP = [
 # Rendu
 # --------------------------------------------------------------------------
 
-# Les couleurs et les réglages matplotlib sont dans src/style.py, qui documente
-# la validation de la palette. Seule la résolution d'export vit ici.
+# Couleurs et réglages matplotlib : voir src/style.py.
 DPI_FIGURES = 200
